@@ -62,3 +62,11 @@ on the second device too: it is a public URL served from the VM.
   timings.
 - `GET /api/workspaces/s5vf6qd7om` on the laptop still serves that persisted log from `data/relay.json`.
 - `/dev/preview` renders every timeline row type and panel state from a fixture without any network.
+
+## Added at 3:50 PM (all additive, pipeline untouched)
+
+- **Invite judges' phones:** the Share button now opens a QR of the LAN URL (`http://10.43.253.125:3000/w/<id>`). Phones must be on the same Wi-Fi.
+- **Open the live app on a phone:** the phone icon next to Open in the artifact header shows a QR of the public style.dev preview.
+- **Agent timers:** working agents show a live elapsed clock, so a 25-second Builder run reads as progress, not a hang.
+- **Model families:** Architect and Reviewer run on GLM-5.3-flash, the Builder on MiMo-v2.6-pro (set via `RELAY_*_MODEL`); each card shows the model that actually answered. Say it out loud: the Reviewer critiques work written by a different model.
+- **Map tab (if present):** a live React Flow map of humans, revisions, agents, plan components, builds and verdicts. Open it after the cascade for the "whole room at a glance" shot.

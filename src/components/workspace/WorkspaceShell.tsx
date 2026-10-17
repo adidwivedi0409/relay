@@ -57,7 +57,7 @@ export function WorkspaceShell({ snapshot, connected, now, selfId, onSend, sendi
         </motion.main>
 
         <motion.div {...panel(3)} className="w-[40%] min-w-[400px] shrink-0 border-l border-line-0 xl:w-[42%] xl:min-w-[440px]">
-          <ArtifactPanel workspace={workspace} />
+          <ArtifactPanel workspace={workspace} participants={participants} agents={agents} tasks={tasks} events={events} now={now} />
         </motion.div>
       </div>
     </div>

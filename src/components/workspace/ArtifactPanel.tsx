@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { Workspace } from "@/lib/types";
+import type { Agent, Participant, RelayEvent, Task, Workspace } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Chip, type ChipTone } from "@/components/ui/Chip";
 import { QrPopover } from "@/components/ui/QrCode";
@@ -10,15 +10,23 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import { IconExternal, type IconProps } from "@/components/ui/icons";
 import { buildStatusLabel, executorLabel, isBuildInFlight, shortId } from "@/lib/client/format";
 import { FilesView } from "./FilesView";
+import { MapView } from "./MapView";
 import { PlanView } from "./PlanView";
 import { PreviewFrame } from "./PreviewFrame";
 import { RevisionPill } from "./RevisionPill";
 
 export interface ArtifactPanelProps {
   workspace: Workspace;
+  participants?: Participant[];
+  agents?: Agent[];
+  tasks?: Task[];
+  events?: RelayEvent[];
+  now: number;
 }
 
-type Tab = "preview" | "files" | "plan";
+type Tab = "preview" | "files" | "plan" | "map";
+
+const NONE: never[] = [];
 
 function buildTone(status: Workspace["buildStatus"]): ChipTone {
   switch (status) {
@@ -54,7 +62,7 @@ const IconPhone = ({ size = 16, ...rest }: IconProps) => (
   </svg>
 );
 
-export function ArtifactPanel({ workspace }: ArtifactPanelProps) {
+export function ArtifactPanel({ workspace, participants = NONE, agents = NONE, tasks = NONE, events = NONE, now }: ArtifactPanelProps) {
   const [tab, setTab] = useState<Tab>("preview");
   const [phoneOpen, setPhoneOpen] = useState(false);
   const phoneBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -69,6 +77,7 @@ export function ArtifactPanel({ workspace }: ArtifactPanelProps) {
     { value: "preview" as const, label: "Preview" },
     { value: "files" as const, label: "Files", count: artifact?.files.length },
     { value: "plan" as const, label: "Plan" },
+    { value: "map" as const, label: "Map" },
   ];
 
   return (
@@ -140,6 +149,8 @@ export function ArtifactPanel({ workspace }: ArtifactPanelProps) {
           />
         ) : tab === "files" ? (
           <FilesView artifact={artifact} />
+        ) : tab === "map" ? (
+          <MapView workspace={workspace} participants={participants} agents={agents} tasks={tasks} events={events} now={now} />
         ) : (
           <PlanView plan={workspace.plan} workspaceRevision={workspace.revision} />
         )}
