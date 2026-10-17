@@ -9,6 +9,9 @@ import { reviewerSystemPrompt, reviewerUserPrompt, type ReviewCheck, type Review
 
 export type { ReviewCheck, ReviewResult, ReviewerCtx } from "./prompts";
 
+/** Optional per-agent model on the same provider (e.g. deepseek-v4.1-flash on Wally). */
+const REVIEWER_MODEL = process.env.RELAY_REVIEWER_MODEL || undefined;
+
 /** Contract entry point. */
 export async function review(ctx: ReviewerCtx): Promise<ReviewResult> {
   const { review: result } = await reviewWithMeta(ctx);
@@ -26,6 +29,7 @@ export async function reviewWithMeta(ctx: ReviewerCtx): Promise<{ review: Review
     ],
     temperature: 0.2,
     maxTokens: 2200,
+    model: REVIEWER_MODEL,
   });
   const merged = reconcile(value, deterministic, ctx);
   const { text: _text, ...meta } = result;

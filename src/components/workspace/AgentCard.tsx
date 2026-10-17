@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useEffect, useState } from "react";
 import type { Agent, Task } from "@/lib/types";
 import { AGENT_COLORS } from "@/lib/types";
 import { Chip, type ChipTone } from "@/components/ui/Chip";
@@ -32,8 +33,33 @@ function statusTone(agent: Agent): ChipTone {
   }
 }
 
+function formatElapsed(seconds: number): string {
+  const s = Math.max(0, seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
+  return `${h > 0 ? `${h}:` : ""}${mm}:${String(sec).padStart(2, "0")}`;
+}
+
 export function AgentCard({ agent, tasks, currentTask, now }: AgentCardProps) {
   const reduce = useReducedMotion();
+  const timing = agent.status === "thinking" || agent.status === "working";
+  // Live elapsed timer, keyed to the status change it measures from. Starts
+  // null so SSR and the first client paint agree; ticks only while busy.
+  const since = agent.updatedAt;
+  const [tick, setTick] = useState<{ since: number; at: number } | null>(null);
+  useEffect(() => {
+    if (!timing) return;
+    const update = () => setTick({ since, at: Date.now() });
+    const first = window.setTimeout(update, 0);
+    const id = window.setInterval(update, 1000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
+  }, [timing, since]);
+  const elapsed = timing && tick !== null && tick.since === since ? Math.floor((tick.at - since) / 1000) : null;
   const color = AGENT_COLORS[agent.role];
   const busy = isAgentBusy(agent.status);
   const done = tasks.filter((t) => t.status === "done").length;
@@ -67,7 +93,7 @@ export function AgentCard({ agent, tasks, currentTask, now }: AgentCardProps) {
         </div>
       </div>
 
-      <div className="mt-2.5 min-h-[16px]">
+      <div className="mt-2.5 flex min-h-[16px] items-start gap-2">
         <AnimatePresence mode="wait" initial={false}>
           <motion.p
             key={`${agent.status}:${agent.statusDetail ?? ""}`}
@@ -75,7 +101,7 @@ export function AgentCard({ agent, tasks, currentTask, now }: AgentCardProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -3 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className={["line-clamp-2 text-[12px] leading-[16px]", isError ? "text-err" : "text-fg-1"].join(" ")}
+            className={["min-w-0 flex-1 line-clamp-2 text-[12px] leading-[16px]", isError ? "text-err" : "text-fg-1"].join(" ")}
           >
             {agent.statusDetail ??
               (agent.status === "idle"
@@ -85,6 +111,15 @@ export function AgentCard({ agent, tasks, currentTask, now }: AgentCardProps) {
                   : agentStatusLabel(agent.status))}
           </motion.p>
         </AnimatePresence>
+        {elapsed !== null ? (
+          <span
+            className="shrink-0 font-mono text-[11px] leading-[16px] tabular-nums text-fg-3"
+            aria-label={`Elapsed ${formatElapsed(elapsed)}`}
+            title="Time in this state"
+          >
+            {formatElapsed(elapsed)}
+          </span>
+        ) : null}
       </div>
 
       {currentTask ? (

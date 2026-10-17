@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Workspace } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Chip, type ChipTone } from "@/components/ui/Chip";
+import { QrPopover } from "@/components/ui/QrCode";
 import { Tabs } from "@/components/ui/Tabs";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { IconExternal } from "@/components/ui/icons";
+import { IconExternal, type IconProps } from "@/components/ui/icons";
 import { buildStatusLabel, executorLabel, isBuildInFlight, shortId } from "@/lib/client/format";
 import { FilesView } from "./FilesView";
 import { PlanView } from "./PlanView";
@@ -34,8 +35,30 @@ function buildTone(status: Workspace["buildStatus"]): ChipTone {
   }
 }
 
+const IconPhone = ({ size = 16, ...rest }: IconProps) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.5}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    focusable="false"
+    {...rest}
+  >
+    <rect x="4.25" y="1.75" width="7.5" height="12.5" rx="1.5" />
+    <path d="M7 12h2" />
+  </svg>
+);
+
 export function ArtifactPanel({ workspace }: ArtifactPanelProps) {
   const [tab, setTab] = useState<Tab>("preview");
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const phoneBtnRef = useRef<HTMLButtonElement | null>(null);
+  const closePhone = useCallback(() => setPhoneOpen(false), []);
   const artifact = workspace.artifact;
   const inFlight = isBuildInFlight(workspace.buildStatus);
   const targetRevision = workspace.activeRevision ?? workspace.revision;
@@ -66,6 +89,31 @@ export function ArtifactPanel({ workspace }: ArtifactPanelProps) {
             </Tooltip>
           ) : null}
           {artifact ? <RevisionPill revision={artifact.revision} size="xs" title={`Artifact revision ${artifact.revision}`} /> : null}
+          {artifact?.previewUrl ? (
+            <>
+              <Button
+                ref={phoneBtnRef}
+                size="xs"
+                variant="secondary"
+                onClick={() => setPhoneOpen((v) => !v)}
+                aria-label="Open preview on a phone"
+                aria-haspopup="dialog"
+                aria-expanded={phoneOpen}
+                title="Open preview on a phone"
+                className="w-6 px-0"
+              >
+                <IconPhone size={13} />
+              </Button>
+              <QrPopover
+                open={phoneOpen}
+                onClose={closePhone}
+                anchorRef={phoneBtnRef}
+                title="Open preview on a phone"
+                url={artifact.previewUrl}
+                hint="Scan to open the live preview on any device"
+              />
+            </>
+          ) : null}
           <Button
             size="xs"
             variant="secondary"

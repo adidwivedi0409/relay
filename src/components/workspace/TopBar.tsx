@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Participant, Workspace } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
+import { QrPopover, copyText } from "@/components/ui/QrCode";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { IconCheck, IconLink } from "@/components/ui/icons";
 import { PresenceStack } from "./PresenceStack";
@@ -18,35 +19,15 @@ export interface TopBarProps {
   selfId: string | null;
 }
 
-async function copyText(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // fall through to the legacy path
-  }
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
 export function TopBar({ workspace, participants, now, connected, selfId }: TopBarProps) {
   const reduce = useReducedMotion();
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const shareBtnRef = useRef<HTMLButtonElement | null>(null);
+  /** LAN origin from /api/health (e.g. "http://10.0.0.5:3000"); fetched once. */
+  const lanUrl = useRef<string | null | undefined>(undefined);
 
   useEffect(
     () => () => {
@@ -55,13 +36,41 @@ export function TopBar({ workspace, participants, now, connected, selfId }: TopB
     [],
   );
 
-  const onShare = useCallback(async () => {
-    const ok = await copyText(window.location.href);
-    if (!ok) return;
+  const flashCopied = useCallback(() => {
     setCopied(true);
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setCopied(false), 1400);
   }, []);
+
+  const resolveShareUrl = useCallback((): string => {
+    const lan = lanUrl.current;
+    return typeof lan === "string" && lan ? lan.replace(/\/+$/, "") + window.location.pathname : window.location.href;
+  }, []);
+
+  const closeShare = useCallback(() => setShareOpen(false), []);
+
+  const onShare = useCallback(async () => {
+    if (shareOpen) {
+      setShareOpen(false);
+      return;
+    }
+    setShareOpen(true);
+    // Keep the one-click copy: copy the best URL we know right now.
+    const ok = await copyText(resolveShareUrl());
+    if (ok) flashCopied();
+    if (lanUrl.current === undefined) {
+      setShareUrl(null);
+      try {
+        const res = await fetch("/api/health", { cache: "no-store" });
+        const json: unknown = await res.json();
+        const lan = json && typeof json === "object" ? (json as { lanUrl?: unknown }).lanUrl : undefined;
+        lanUrl.current = typeof lan === "string" && lan ? lan : null;
+      } catch {
+        lanUrl.current = null;
+      }
+    }
+    setShareUrl(resolveShareUrl());
+  }, [shareOpen, resolveShareUrl, flashCopied]);
 
   const isLive = workspace.buildStatus === "live" && workspace.artifact !== null;
   const activeRev = workspace.activeRevision;
@@ -111,15 +120,28 @@ export function TopBar({ workspace, participants, now, connected, selfId }: TopB
         <PresenceStack participants={participants} now={now} selfId={selfId} />
 
         <Button
+          ref={shareBtnRef}
           size="sm"
           variant="secondary"
           onClick={onShare}
           aria-live="polite"
+          aria-haspopup="dialog"
+          aria-expanded={shareOpen}
           leading={copied ? <IconCheck size={14} className="text-ok" /> : <IconLink size={14} className="text-fg-2" />}
           className="min-w-[78px]"
         >
           {copied ? "Copied" : "Share"}
         </Button>
+        <QrPopover
+          open={shareOpen}
+          onClose={closeShare}
+          anchorRef={shareBtnRef}
+          title="Invite to this workspace"
+          url={shareUrl}
+          hint="Scan from a phone on the same Wi-Fi"
+          copied={copied}
+          onCopied={flashCopied}
+        />
       </div>
     </header>
   );

@@ -9,6 +9,9 @@ import { architectSystemPrompt, architectUserPrompt, SITE_FILES, type ArchitectC
 
 export type { ArchitectCtx } from "./prompts";
 
+/** Optional per-agent model on the same provider (e.g. glm-5.3-flash on Wally). */
+const ARCHITECT_MODEL = process.env.RELAY_ARCHITECT_MODEL || undefined;
+
 const MIN_COMPONENTS = 2;
 const MAX_COMPONENTS = 9;
 
@@ -29,6 +32,7 @@ export async function planWithMeta(ctx: ArchitectCtx): Promise<{ plan: Plan; met
     ],
     temperature: 0.4,
     maxTokens: 2600,
+    model: ARCHITECT_MODEL,
   });
   const normalized = normalizePlan(value, ctx.previousPlan, targetRevision);
   const { text: _text, ...meta } = result;
