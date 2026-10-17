@@ -32,6 +32,26 @@ export type TimelineItem =
  * an "r1" section (which also produced duplicate React keys).
  */
 export function buildTimeline(events: RelayEvent[], requirements: Requirement[]): TimelineItem[] {
+  // Agents narrate once (agent.message); task outputs and handoff summaries that repeat the
+  // same prose are trimmed so the timeline reads like a conversation, not an echo chamber.
+  const norm = (t: unknown) => (typeof t === "string" ? t.replace(/\s+/g, " ").trim().slice(0, 90).toLowerCase() : "");
+  const narrated = new Set<string>();
+  for (const e of events) if (e.type === "agent.message") { const k = norm(e.message); if (k) narrated.add(k); }
+  const dedupeEvent = (e: RelayEvent): RelayEvent => {
+    if (e.type === "agent.handoff") {
+      const summary = e.payload?.summary;
+      if (narrated.has(norm(summary))) return { ...e, payload: { ...e.payload, summary: null } };
+      return e;
+    }
+    if (e.type.startsWith("task.")) {
+      const task = e.payload?.task as { output?: string | null } | undefined;
+      const out = task?.output ?? (e.payload?.output as string | undefined);
+      if (out && narrated.has(norm(out))) {
+        return { ...e, payload: { ...e.payload, output: null, ...(task ? { task: { ...task, output: null } } : {}) } };
+      }
+    }
+    return e;
+  };
   const byRevision = new Map<number, Requirement>();
   for (const r of requirements) if (!byRevision.has(r.revision)) byRevision.set(r.revision, r);
 
@@ -58,16 +78,16 @@ export function buildTimeline(events: RelayEvent[], requirements: Requirement[])
         const idx = taskRows.get(taskId);
         const existing = idx !== undefined ? items[idx] : undefined;
         if (existing && existing.kind === "row") {
-          items[idx as number] = { ...existing, event, collapsed: existing.collapsed + 1 };
+          items[idx as number] = { ...existing, event: dedupeEvent(event), collapsed: existing.collapsed + 1 };
           continue;
         }
         taskRows.set(taskId, items.length);
-        items.push({ kind: "row", key: `task:${taskId}`, event, collapsed: 1 });
+        items.push({ kind: "row", key: `task:${taskId}`, event: dedupeEvent(event), collapsed: 1 });
         continue;
       }
     }
 
-    items.push({ kind: "row", key: event.id, event, collapsed: 1 });
+    items.push({ kind: "row", key: event.id, event: dedupeEvent(event), collapsed: 1 });
   }
   return items;
 }

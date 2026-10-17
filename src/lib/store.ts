@@ -8,6 +8,7 @@
 // timers and presence bookkeeping stay in memory only.
 // ─────────────────────────────────────────────────────────────────────────────
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { describeProvider } from "@/lib/llm";
 import { agentId, colorForJoinIndex, newId, newWorkspaceId } from "@/lib/ids";
@@ -16,6 +17,8 @@ import {
   PRESENCE_TTL_MS,
   type Agent,
   type AgentRole,
+  type AgentStatus,
+  type BuildStatus,
   type ExecutorKind,
   type Participant,
   type RelayEvent,
@@ -90,6 +93,10 @@ const PARTICIPANTS_BROADCAST_MIN_MS = 5_000;
 const PRESENCE_SWEEP_MS = 5_000;
 const ROLES: AgentRole[] = ["architect", "builder", "reviewer"];
 const LOG = "[relay:store]";
+const AGENT_STATUSES: ReadonlySet<string> = new Set<AgentStatus>(["idle", "thinking", "working", "waiting", "done", "error"]);
+const BUILD_STATUSES: ReadonlySet<string> = new Set<BuildStatus>(["idle", "provisioning", "writing", "building", "live", "failed"]);
+const TASK_STATUSES: ReadonlySet<string> = new Set<Task["status"]>(["queued", "running", "stale", "done", "failed", "superseded"]);
+const RESTART_NOTE = "Interrupted by a server restart";
 
 // ── Persisted shape ──────────────────────────────────────────────────────────
 
@@ -228,7 +235,15 @@ function createState(): State {
   if (!persisted) return state;
 
   for (const ws of persisted.workspaces) {
-    state.workspaces.set(ws.id, { ...freshWorkspaceDefaults(), ...ws, requirements: Array.isArray(ws.requirements) ? ws.requirements : [] });
+    const loaded: Workspace = { ...freshWorkspaceDefaults(), ...ws, requirements: Array.isArray(ws.requirements) ? ws.requirements : [] };
+    // A fresh process runs no pipeline: clear the in-flight markers the previous one left behind.
+    loaded.activeRevision = null;
+    loaded.pendingRevision = null;
+    if (typeof loaded.revision !== "number" || !Number.isFinite(loaded.revision)) loaded.revision = loaded.requirements.length;
+    if (!BUILD_STATUSES.has(loaded.buildStatus) || loaded.buildStatus === "provisioning" || loaded.buildStatus === "writing" || loaded.buildStatus === "building") {
+      loaded.buildStatus = loaded.artifact ? "live" : "idle";
+    }
+    state.workspaces.set(ws.id, loaded);
     state.participants.set(ws.id, new Map());
     state.agents.set(ws.id, new Map());
     state.events.set(ws.id, []);
@@ -238,7 +253,15 @@ function createState(): State {
     state.participants.get(p.workspaceId)?.set(p.id, p);
   }
   for (const a of persisted.agents) {
-    if (ROLES.includes(a.role)) state.agents.get(a.workspaceId)?.set(a.role, a);
+    if (!ROLES.includes(a.role) || !state.workspaces.has(a.workspaceId)) continue;
+    const defaults = buildAgents(a.workspaceId, Date.now()).get(a.role)!;
+    const agent: Agent = { ...defaults, ...a, id: defaults.id, name: defaults.name };
+    if (!AGENT_STATUSES.has(agent.status) || agent.status === "thinking" || agent.status === "working" || agent.status === "waiting") {
+      agent.status = "idle";
+      agent.statusDetail = RESTART_NOTE;
+      agent.currentTaskId = null;
+    }
+    state.agents.get(a.workspaceId)?.set(a.role, agent);
   }
   // Every workspace must have all three agents; backfill if the file predates one.
   for (const ws of state.workspaces.values()) {
@@ -249,9 +272,24 @@ function createState(): State {
     }
   }
   for (const t of persisted.tasks) {
-    if (state.workspaces.has(t.workspaceId)) state.tasks.set(t.id, t);
+    if (!state.workspaces.has(t.workspaceId)) continue;
+    const task: Task = {
+      ...t,
+      dependsOn: Array.isArray(t.dependsOn) ? t.dependsOn : [],
+      status: TASK_STATUSES.has(t.status) ? t.status : "failed",
+      output: t.output ?? null,
+      error: t.error ?? null,
+      startedAt: t.startedAt ?? null,
+      finishedAt: t.finishedAt ?? null,
+    };
+    if (task.status === "queued" || task.status === "running" || task.status === "stale") {
+      task.status = "failed";
+      task.error = task.error ?? RESTART_NOTE;
+      task.finishedAt = task.finishedAt ?? Date.now();
+    }
+    state.tasks.set(t.id, task);
   }
-  const sortedEvents = [...persisted.events].sort((a, b) => a.seq - b.seq);
+  const sortedEvents = persisted.events.filter((e) => typeof e.seq === "number" && Number.isFinite(e.seq)).sort((a, b) => a.seq - b.seq);
   for (const e of sortedEvents) {
     const log = state.events.get(e.workspaceId);
     if (!log) continue;
@@ -339,6 +377,14 @@ function createStore(): RelayStore {
   }
 
   process.on("exit", flushSync);
+  process.on("beforeExit", flushSync);
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+    process.on(signal, () => {
+      flushSync();
+      // Only end the process ourselves when nobody else (Next's dev server, a test runner) owns the signal.
+      if (process.listenerCount(signal) === 1) process.exit(128 + (os.constants.signals[signal] ?? 0));
+    });
+  }
 
   // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -615,7 +661,9 @@ function createStore(): RelayStore {
 
   function emit(wsId: string, e: NewEvent): RelayEvent {
     const ws = mustWorkspace(wsId);
-    const seq = (state.seq.get(wsId) ?? 0) + 1;
+    const existing = state.events.get(wsId);
+    const tail = existing && existing.length ? existing[existing.length - 1].seq : 0;
+    const seq = Math.max(state.seq.get(wsId) ?? 0, Number.isFinite(tail) ? tail : 0) + 1;
     state.seq.set(wsId, seq);
     const event: RelayEvent = {
       id: newId(),

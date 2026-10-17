@@ -42,7 +42,8 @@ const STOPWORDS = new Set(
     "a an and are as at be but by for from has have if in into is it its of on or that the their them then there these they this to was we were what when where which who will with would you your " +
     "about also any because been being can could did does doing done each else even every get got just like make makes made more most much must need needs new now only other our out over " +
     "own page pages please put same see should show site some such sure than through too under use used using very want wants way well while why without work works " +
-    "landing website web app build built create add adds added section sections feature features include includes including users user people something things thing really maybe kind sort lot bit"
+    "landing website web app build built create add adds added section sections feature features include includes including users user people something things thing really maybe kind sort lot bit " +
+    "look looks looking style styled nice better good great cool fancy clean simple modern sleek pretty beautiful little less change changes changed update updated updates instead rather"
   ).split(/\s+/),
 );
 
@@ -69,12 +70,12 @@ function requirementCoverage(req: Requirement, haystack: string): ReviewCheck {
   const found: string[] = [];
   const missing: string[] = [];
   for (const w of words) (haystack.includes(stem(w)) ? found : missing).push(w);
-  const threshold = Math.ceil(words.length * 0.5);
+  const threshold = Math.min(words.length, Math.max(1, Math.ceil(words.length * 0.4)));
   const ok = found.length >= threshold;
   return {
     name,
     ok,
-    detail: `r${req.revision}: ${found.length}/${words.length} keywords appear in index.html+app.js` + (found.length ? ` (found: ${found.slice(0, 8).join(", ")})` : "") + (missing.length ? ` (missing: ${missing.slice(0, 8).join(", ")})` : ""),
+    detail: `r${req.revision}: ${found.length}/${words.length} keywords appear in index.html+styles.css+app.js (need ${threshold})` + (found.length ? ` (found: ${found.slice(0, 8).join(", ")})` : "") + (missing.length ? ` (missing: ${missing.slice(0, 8).join(", ")})` : ""),
   };
 }
 
@@ -88,8 +89,8 @@ export function runDeterministicChecks(ctx: ReviewerCtx): ReviewCheck[] {
   // 1. index.html exists and starts properly.
   checks.push({
     name: "index-doctype",
-    ok: /^\s*<!doctype\s+html/i.test(index),
-    detail: index ? (/^\s*<!doctype\s+html/i.test(index) ? "index.html starts with <!doctype html>" : `index.html starts with "${index.slice(0, 40).replace(/\s+/g, " ")}" instead of <!doctype html>`) : "index.html is missing from the artifact",
+    ok: /^\uFEFF?\s*<!doctype\s+html/i.test(index),
+    detail: index ? (/^\uFEFF?\s*<!doctype\s+html/i.test(index) ? "index.html starts with <!doctype html>" : `index.html starts with "${index.slice(0, 40).replace(/\s+/g, " ")}" instead of <!doctype html>`) : "index.html is missing from the artifact",
   });
 
   // 2. <title>
@@ -174,7 +175,7 @@ export function runDeterministicChecks(ctx: ReviewerCtx): ReviewCheck[] {
   });
 
   // 10. Requirement keyword coverage, one check per requirement.
-  const haystack = `${index}\n${js}`.toLowerCase();
+  const haystack = `${index}\n${css}\n${js}`.toLowerCase();
   for (const req of ctx.requirements.slice().sort((a, b) => a.revision - b.revision)) checks.push(requirementCoverage(req, haystack));
 
   return checks;

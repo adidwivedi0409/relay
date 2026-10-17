@@ -193,7 +193,7 @@ export function builderUserPrompt(ctx: BuilderCtx): string {
     for (const f of ctx.previousFiles) lines.push(fileBlock(f));
   }
 
-  if (ctx.delta) {
+  if (ctx.delta && isRevision) {
     const d = ctx.delta;
     lines.push("");
     lines.push(`Delta r${d.fromRevision} -> r${d.toRevision} from the Architect:`);
