@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -15,6 +16,7 @@
 
 # next.js
 /.next/
+.next/
 /out/
 
 # production
@@ -30,8 +32,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files: every real env file stays local; the documented template is committed
+.env
+.env.*
+.env.local
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +44,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Relay runtime state: persisted store (data/relay.json) and local-fallback artifacts
+data/
+
+# local tooling config with machine-specific paths
+.claude/

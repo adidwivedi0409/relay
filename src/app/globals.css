@@ -1,26 +1,128 @@
 @import "tailwindcss";
 
+/* ─── Relay design tokens ───────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* surfaces: graphite scale, slightly warm */
+  --bg-0: #0b0b0c;        /* app background */
+  --bg-1: #101012;        /* panels */
+  --bg-2: #161618;        /* raised: cards, inputs */
+  --bg-3: #1c1c1f;        /* hover */
+  --bg-4: #232327;        /* active */
+
+  /* borders */
+  --line-0: rgba(255, 255, 255, 0.06);
+  --line-1: rgba(255, 255, 255, 0.10);
+  --line-2: rgba(255, 255, 255, 0.16);
+
+  /* text: warm off-white */
+  --fg-0: #f3f1ec;
+  --fg-1: #c9c6bf;
+  --fg-2: #8f8c85;
+  --fg-3: #5f5d58;
+
+  /* the one accent: warm ember */
+  --accent: #e8a86b;
+  --accent-strong: #f0b77f;
+  --accent-soft: rgba(232, 168, 107, 0.12);
+
+  /* semantic */
+  --ok: #86c7a3;
+  --warn: #e3c27a;
+  --err: #e27f7f;
+  --info: #9cc2e5;
+
+  /* agents */
+  --architect: #d9a86c;
+  --builder: #7fb3a5;
+  --reviewer: #a48acb;
+
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+
+  --shadow-1: 0 1px 0 rgba(255,255,255,0.03) inset, 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-2: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px -12px rgba(0,0,0,0.6);
+  --shadow-pop: 0 0 0 1px rgba(255,255,255,0.06), 0 12px 40px -12px rgba(0,0,0,0.7);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg-0: var(--bg-0);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-bg-3: var(--bg-3);
+  --color-bg-4: var(--bg-4);
+  --color-line-0: var(--line-0);
+  --color-line-1: var(--line-1);
+  --color-line-2: var(--line-2);
+  --color-fg-0: var(--fg-0);
+  --color-fg-1: var(--fg-1);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-err: var(--err);
+  --color-info: var(--info);
+  --color-architect: var(--architect);
+  --color-builder: var(--builder);
+  --color-reviewer: var(--reviewer);
+  --radius-s: var(--radius-s);
+  --radius-m: var(--radius-m);
+  --radius-l: var(--radius-l);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html, body { height: 100%; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-0);
+  color: var(--fg-0);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01", "ss03", "cv01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.005em;
+}
+
+::selection { background: rgba(232,168,107,0.25); color: var(--fg-0); }
+
+/* scrollbars: thin, quiet */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); background-clip: content-box; border: 2px solid transparent; }
+
+/* focus ring */
+:focus-visible { outline: 2px solid rgba(232,168,107,0.6); outline-offset: 2px; border-radius: 4px; }
+
+/* utilities */
+.hairline { box-shadow: inset 0 0 0 1px var(--line-1); }
+.panel { background: var(--bg-1); border: 1px solid var(--line-0); }
+.mono { font-family: var(--font-mono); font-feature-settings: "liga" 0; }
+.tabular { font-variant-numeric: tabular-nums; }
+.text-balance { text-wrap: balance; }
+
+/* live pulse for status dots */
+@keyframes relay-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.pulse { animation: relay-pulse 1.6s var(--ease-out) infinite; }
+
+/* shimmer for loading rows */
+@keyframes relay-shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+.shimmer {
+  background: linear-gradient(90deg, var(--bg-2) 0%, var(--bg-3) 50%, var(--bg-2) 100%);
+  background-size: 200% 100%;
+  animation: relay-shimmer 1.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }

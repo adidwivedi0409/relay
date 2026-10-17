@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#ffffff" fill-opacity="0.055"/>
+    </pattern>
+    <radialGradient id="fade" cx="50%" cy="0%" r="90%">
+      <stop offset="10%" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ember" cx="50%" cy="0%" r="60%">
+      <stop offset="0%" stop-color="#e8a86b" stop-opacity="0.11"/>
+      <stop offset="100%" stop-color="#e8a86b" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="dotmask">
+      <rect width="1200" height="630" fill="url(#fade)"/>
+    </mask>
+  </defs>
+
+  <rect width="1200" height="630" fill="#0b0b0c"/>
+  <rect width="1200" height="630" fill="url(#dots)" mask="url(#dotmask)"/>
+  <rect width="1200" height="630" fill="url(#ember)"/>
+
+  <!-- wordmark -->
+  <g transform="translate(80 72)">
+    <rect x="2" y="3" width="13.5" height="5.25" rx="2.6" fill="#f3f1ec" fill-opacity="0.42"/>
+    <rect x="6.5" y="10.9" width="13.5" height="5.25" rx="2.6" fill="#f3f1ec" fill-opacity="0.7"/>
+    <rect x="11" y="18.75" width="13.5" height="5.25" rx="2.6" fill="#e8a86b"/>
+    <text x="36" y="20" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="22" font-weight="600" letter-spacing="-0.4" fill="#f3f1ec">Relay</text>
+  </g>
+
+  <!-- eyebrow -->
+  <text x="80" y="268" font-family="'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace" font-size="16" letter-spacing="3" fill="#8f8c85">MULTIPLAYER AI · C0MPILED-14</text>
+
+  <!-- headline -->
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="68" font-weight="600" letter-spacing="-2" fill="#f3f1ec">
+    <text x="80" y="356">Build together. With everyone.</text>
+    <text x="80" y="436">Including your agents.</text>
+  </g>
+
+  <!-- supporting line -->
+  <text x="80" y="498" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="22" fill="#c9c6bf">Humans set the brief. Architect, Builder and Reviewer agents plan, code and verify, live.</text>
+
+  <!-- footer -->
+  <line x1="80" y1="556" x2="1120" y2="556" stroke="#ffffff" stroke-opacity="0.08"/>
+  <text x="80" y="590" font-family="'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace" font-size="14" letter-spacing="1" fill="#5f5d58">Built at c0mpiled-14 · Berkeley · Freestyle + RunAnywhere Wally</text>
+</svg>

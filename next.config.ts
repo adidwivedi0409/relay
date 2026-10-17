@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Relay is a live, per-request multiplayer app: no static caching of pages.
+  cacheComponents: false,
+  serverExternalPackages: ["freestyle"],
   turbopack: {
     rules: {
       "*.css": {
