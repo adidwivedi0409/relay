@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     // keep default
   }
   const ip = firstLanIPv4();
-  const lanUrl = ip ? `http://${ip}:${port}` : null;
+  const lanUrl = process.env.RELAY_PUBLIC_URL?.replace(/\/$/, "") || (ip ? `http://${ip}:${port}` : null);
 
   return Response.json(
     {
