@@ -80,6 +80,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       // A leading comment line makes proxies flush headers immediately and
       // tells EventSource how fast to retry after a drop.
       controller.enqueue(encoder.encode(`retry: 1500\n: connected ${id}\n\n`));
+      // PADDING: some proxies (Cloudflare tunnels, corporate gateways) hold small responses back;
+      // a 4 KB comment pushes the first bytes through so the snapshot is not buffered.
+      controller.enqueue(encoder.encode(`: ${" ".repeat(4096)}\n\n`));
 
       if (since === undefined) {
         send({ kind: "snapshot", snapshot: store.snapshot(id) });

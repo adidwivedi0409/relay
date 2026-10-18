@@ -232,6 +232,13 @@ export function useWorkspace(id: string): UseWorkspaceResult {
     let timer: number | null = null;
     let attempt = 0;
     const base = `/api/workspaces/${encodeURIComponent(id)}`;
+    let poll: number | null = null;
+    const stopPoll = () => {
+      if (poll !== null) {
+        window.clearInterval(poll);
+        poll = null;
+      }
+    };
 
     const clearTimer = () => {
       if (timer !== null) {
@@ -259,6 +266,34 @@ export function useWorkspace(id: string): UseWorkspaceResult {
       setPhase((p) => (p === "live" || p === "reconnecting" ? p : "connecting"));
       const source = new EventSource(url);
       es = source;
+      // Fallback for proxies that buffer SSE: if no frame arrives within 2.5 s, poll the
+      // snapshot every 3 s until the stream delivers. Everything still goes through applyIncoming.
+      let gotFrame = false;
+      const pollOnce = async () => {
+        try {
+          const res = await fetch(base, { cache: "no-store" });
+          if (!res.ok) return;
+          const snapshot = (await res.json()) as WorkspaceSnapshot;
+          if (cancelled || es !== source || gotFrame) return;
+          applyIncoming({ kind: "snapshot", snapshot });
+          setConnected(true);
+          setPhase("live");
+        } catch {
+          /* next tick */
+        }
+      };
+      window.setTimeout(() => {
+        if (cancelled || es !== source || gotFrame) return;
+        void pollOnce();
+        stopPoll();
+        poll = window.setInterval(() => {
+          if (gotFrame || es !== source || cancelled) {
+            stopPoll();
+            return;
+          }
+          void pollOnce();
+        }, 3000);
+      }, 2500);
       source.onopen = () => {
         if (cancelled || es !== source) return;
         attempt = 0;
@@ -268,6 +303,8 @@ export function useWorkspace(id: string): UseWorkspaceResult {
       };
       source.onmessage = (ev: MessageEvent<string>) => {
         if (cancelled || es !== source) return;
+        gotFrame = true;
+        stopPoll();
         let frame: SseFrame | null = null;
         try {
           frame = JSON.parse(ev.data) as SseFrame;
@@ -339,6 +376,7 @@ export function useWorkspace(id: string): UseWorkspaceResult {
 
     return () => {
       cancelled = true;
+      stopPoll();
       window.clearTimeout(start);
       document.removeEventListener("visibilitychange", onVisible);
       clearTimer();
